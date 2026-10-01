@@ -40,7 +40,7 @@ MCP (Model Context Protocol) servers declare tool schemas — but their actual o
 ## Install
 
 ```bash
-pip install mcp-response-guard
+pip install git+https://github.com/yunaremaia/mcp-response-guard.git
 ```
 
 ## Quick Start
