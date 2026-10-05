@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-response-guard"
+version = "0.1.0"
+description = "Runtime schema validation and drift detection for MCP server responses"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Yunare Maia", email = "yunare@gmail.com"}
+]
+keywords = ["mcp", "schema", "drift", "validation", "sarif", "ai-agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = [
+    "click>=8.1",
+    "jsonschema>=4.18",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+mcp-response-guard = "mcp_response_guard.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yunaremaia/mcp-response-guard"
+Repository = "https://github.com/yunaremaia/mcp-response-guard"
+Issues = "https://github.com/yunaremaia/mcp-response-guard/issues"
+Changelog = "https://github.com/yunaremaia/mcp-response-guard/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["mcp_response_guard*"]
+
+[tool.setuptools.package-data]
+mcp_response_guard = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM"]
