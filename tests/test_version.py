@@ -11,7 +11,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import tomllib
+try:  # Python 3.11+
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 — the `tomli` backport is a dev dep
+    import tomli as tomllib
 
 from mcp_response_guard import __version__
 
