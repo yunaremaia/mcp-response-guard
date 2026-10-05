@@ -19,17 +19,21 @@ Open an issue at [GitHub Issues](https://github.com/yunaremaia/mcp-response-guar
 
 ## Submitting Pull Requests
 
-1. Make sure tests pass locally
+1. Make sure tests pass locally (there is no test suite yet — the first
+   implementation PR should add one)
 2. Open a PR with a clear description of changes
 3. Reference any related issue numbers
 
 ## Code Style
 
-Follow existing code style. Run linters/formatters if the project has them.
+There is no codebase yet, so there is no style to follow. The first
+implementation PR should pick a linter/formatter and configure it.
 
 ## Code of Conduct
 
-This project follows a [Code of Conduct](https://github.com/yunaremaia/mcp-response-guard/blob/main/CODE_OF_CONDUCT.md). By participating, you agree to uphold it.
+There is no `CODE_OF_CONDUCT.md` in this repository yet. Until one is added,
+report conduct issues through a private GitHub issue or email the maintainer
+directly.
 
 ## Security
 

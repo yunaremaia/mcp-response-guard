@@ -3,17 +3,37 @@
 > Runtime schema validation and drift detection for MCP server responses.
 > Detect when MCP tool outputs deviate from their declared JSON schemas.
 
+## Status: proposal, not released
+
+**This repository contains no implementation.** It is a design proposal: a
+README, a license and nothing else — no `src/`, no `pyproject.toml`, no CLI, no
+tests, no CI. There is nothing to install and no `mcp_response_guard` module to
+import today.
+
+Everything below is a *proposal*, written out far enough to be reviewed and
+argued with. The feature list, the API sketch, the detector codes and the
+comparison table are all aspirational. Treat them as a spec, not as
+documentation of shipped behaviour.
+
+Real, working tools in this space:
+
+- [`mcp-guard`](https://github.com/yunaremaia/mcp-guard) — validates MCP server
+  configurations and tool schemas at build/CI time, with SARIF output.
+- [`vibeguard`](https://github.com/yunaremaia/vibeguard) — audits agent
+  configuration for prompt-injection and secret exposure, with SARIF output.
+
 ## The Problem
 
 MCP (Model Context Protocol) servers declare tool schemas — but their actual outputs often drift:
+
 - **Schema violations**: Server returns fields not in schema, misses required fields, or wrong types.
 - **Silent failures**: Agent receives malformed data and hallucinates corrections.
 - **No runtime checks**: Existing tools (`mcp-validators`, `mcptools`) validate schema *definitions*, not live *responses*.
 - **No drift detection**: No tool compares responses across calls to detect when a server's output shape changes.
 
-## The Solution
+## Proposed Solution
 
-`mcp-response-guard` sits between your agent and MCP servers, validating every response against declared schemas and tracking drift over time.
+`mcp-response-guard` would sit between your agent and MCP servers, validating every response against declared schemas and tracking drift over time.
 
 ```
 ┌──────────┐    ┌──────────────────┐    ┌──────────────┐
@@ -28,45 +48,41 @@ MCP (Model Context Protocol) servers declare tool schemas — but their actual o
                 └───────────────┘
 ```
 
-## Features
+## Proposed Features
 
-- **Runtime validation** — Every MCP response validated against declared JSON schema.
-- **Drift detection** — Track schema violations over time; alert when drift exceeds threshold.
+None of these exist yet.
+
+- **Runtime validation** — validate every MCP response against its declared JSON schema.
+- **Drift detection** — track schema violations over time; alert when drift exceeds a threshold.
 - **SARIF output** — GitHub Code Scanning compatible reports.
-- **CI gate** — Fail CI if drift detected in integration tests.
-- **Multi-server** — Guard multiple MCP servers from a single process.
-- **Non-blocking mode** — Log violations without breaking agent workflows.
+- **CI gate** — fail CI if drift is detected in integration tests.
+- **Multi-server** — guard multiple MCP servers from a single process.
+- **Non-blocking mode** — log violations without breaking agent workflows.
 
-## Install
-
-```bash
-pip install git+https://github.com/yunaremaia/mcp-response-guard.git
-```
-
-## Quick Start
+## Proposed API
 
 ```python
+# Not implemented. Sketch of the intended interface.
 from mcp_response_guard import Guard
 
 guard = Guard()
 guard.add_server("filesystem", "http://localhost:3000/mcp")
 
-# Agent calls tool — response is auto-validated
 result = guard.call("filesystem", "read_file", {"path": "/etc/hosts"})
 
-# Check drift report
 report = guard.drift_report()
 print(f"Violations: {report.total_violations}")
 ```
 
-Or as middleware:
+Intended CLI surface:
 
 ```bash
-# Wrap any MCP client
-mcp-guard -- mcp-client --server filesystem
+# Not implemented.
+mcp-response-guard report --since 7d --format json
+mcp-response-guard check --drift-threshold 0.1
 ```
 
-## What It Detects
+## Proposed Detector Codes
 
 | Code | Level | Description |
 |------|-------|-------------|
@@ -76,29 +92,23 @@ mcp-guard -- mcp-client --server filesystem
 | MCPR004 | LOW | Response shape drift from historical baseline |
 | MCPR005 | MEDIUM | Server error response not matching error schema |
 
-## Drift Detection
+## Proposed Drift Detection
 
-Unlike static schema checkers, `mcp-response-guard` maintains a baseline of observed responses per tool. When the shape changes (new fields, removed fields, type changes), it flags drift even if the response is technically valid.
+Unlike static schema checkers, the design would maintain a baseline of observed responses per tool. When the shape changes (new fields, removed fields, type changes), it would flag drift even if the response is technically valid.
 
-```bash
-# Generate drift report
-mcp-response-guard report --since 7d --format json
-
-# Fail CI on drift
-mcp-response-guard check --drift-threshold 0.1
-```
-
-## Comparison
+## Landscape
 
 | Tool | Validates Responses | Drift Detection | Runtime | SARIF |
 |------|---------------------|-----------------|---------|-------|
-| **mcp-response-guard** | ✅ | ✅ | ✅ | ✅ |
-| mcp-validators | Schema definitions only | ❌ | Build-time | ❌ |
-| mcptools | No | ❌ | CLI | ❌ |
-| MCP Guard (yunaremaia) | Schema definitions only | ❌ | Build-time | ✅ |
+| **mcp-response-guard** | proposed | proposed | proposed | proposed |
+| mcp-guard | Schema definitions only | No | Build-time | Yes |
+| vibeguard | No | No | Build-time | Yes |
+| mcp-validators | Schema definitions only | No | Build-time | No |
+| mcptools | No | No | CLI | No |
 
 ## Roadmap
 
+- [ ] Implement the core guard and publish a first release
 - [ ] Baseline auto-learning (first N calls establish baseline)
 - [ ] Slack/email alerts on drift
 - [ ] Integration with `agent-undo` for rollback on violation
