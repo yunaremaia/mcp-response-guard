@@ -31,10 +31,8 @@ implementation PR should pick a linter/formatter and configure it.
 
 ## Code of Conduct
 
-There is no `CODE_OF_CONDUCT.md` in this repository yet. Until one is added,
-report conduct issues through a private GitHub issue or email the maintainer
-directly.
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Security
 
-See [SECURITY.md](https://github.com/yunaremaia/mcp-response-guard/blob/main/SECURITY.md) for vulnerability reporting.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
