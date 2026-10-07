@@ -1,8 +1,8 @@
 """Shape fingerprints, drift comparison and baseline persistence."""
-
 from __future__ import annotations
 
 import json
+import sqlite3
 
 import pytest
 
@@ -85,23 +85,29 @@ def test_check_does_not_mutate_the_baseline():
 
 
 def test_baselines_persist_across_trackers(tmp_path):
-    store = tmp_path / "drift.json"
+    store = tmp_path / "drift.db"
     DriftTracker(store).record("fs.read", {"path": "/a"})
     assert DriftTracker(store).baseline("fs.read") == shape_of({"path": "/a"})
 
 
 def test_baselines_are_kept_per_tool(tmp_path):
-    store = tmp_path / "drift.json"
+    store = tmp_path / "drift.db"
     tracker = DriftTracker(store)
     tracker.record("fs.read", {"path": "/a"})
     tracker.record("git.status", {"branch": "main"})
     assert set(tracker.baselines) == {"fs.read", "git.status"}
 
 
-def test_store_file_is_readable_json(tmp_path):
-    store = tmp_path / "nested" / "drift.json"
+def test_store_file_is_valid_sqlite(tmp_path):
+    store = tmp_path / "nested" / "drift.db"
     DriftTracker(store).record("fs.read", {"path": "/a"})
-    assert json.loads(store.read_text()) == {"fs.read": shape_of({"path": "/a"})}
+    conn = sqlite3.connect(str(store))
+    rows = conn.execute("SELECT tool, shape FROM baselines").fetchall()
+    conn.close()
+    assert len(rows) == 1
+    tool, shape_json = rows[0]
+    assert tool == "fs.read"
+    assert json.loads(shape_json) == shape_of({"path": "/a"})
 
 
 def test_unknown_tool_has_no_drift():
@@ -109,14 +115,7 @@ def test_unknown_tool_has_no_drift():
 
 
 def test_corrupt_store_raises_value_error(tmp_path):
-    store = tmp_path / "drift.json"
-    store.write_text("{not json")
-    with pytest.raises(ValueError, match="readable JSON"):
-        DriftTracker(store)
-
-
-def test_store_that_is_not_an_object_raises(tmp_path):
-    store = tmp_path / "drift.json"
-    store.write_text("[1, 2]")
-    with pytest.raises(ValueError, match="must contain a JSON object"):
+    store = tmp_path / "drift.db"
+    store.write_text("not a database")
+    with pytest.raises(ValueError, match="not a valid SQLite database"):
         DriftTracker(store)

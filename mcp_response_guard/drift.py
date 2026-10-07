@@ -1,8 +1,9 @@
 """Response shape fingerprints and drift comparison against a baseline."""
-
 from __future__ import annotations
 
 import json
+import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -100,27 +101,40 @@ def compare_shapes(
     return violations
 
 
-class DriftTracker:
-    """Per-tool shape baselines, persisted as one JSON file.
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS baselines (
+    tool TEXT PRIMARY KEY,
+    shape TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+)
+"""
 
-    The store maps tool name -> ``{path: type}``. An empty store means "no
-    baseline yet": the first ``record`` for a tool just writes the baseline and
-    reports no drift.
+
+class DriftTracker:
+    """Per-tool shape baselines, persisted in a SQLite database.
+
+    The store is a SQLite file mapping tool name -> ``{path: type}``. An empty
+    store means "no baseline yet": the first ``record`` for a tool just writes
+    the baseline and reports no drift.
     """
 
     def __init__(self, store: str | Path | None = None) -> None:
         self.store = Path(store) if store is not None else None
         self.baselines: dict[str, dict[str, str]] = {}
-        if self.store is not None and self.store.is_file():
+        if self.store is not None:
+            self.store.parent.mkdir(parents=True, exist_ok=True)
+            self._conn = sqlite3.connect(str(self.store))
             try:
-                loaded = json.loads(self.store.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                self._conn.execute(_SCHEMA)
+                self._conn.commit()
+                for tool, shape_json in self._conn.execute("SELECT tool, shape FROM baselines"):
+                    self.baselines[tool] = json.loads(shape_json)
+            except sqlite3.DatabaseError as exc:
                 raise ValueError(
-                    f"baseline store {self.store} is not readable JSON: {exc}"
+                    f"baseline store {self.store} is not a valid SQLite database: {exc}"
                 ) from exc
-            if not isinstance(loaded, dict):
-                raise ValueError(f"baseline store {self.store} must contain a JSON object")
-            self.baselines = {str(k): v for k, v in loaded.items() if isinstance(v, dict)}
+        else:
+            self._conn = None
 
     def baseline(self, tool: str) -> dict[str, str] | None:
         return self.baselines.get(tool)
@@ -135,14 +149,18 @@ class DriftTracker:
     def record(self, tool: str, response: Any) -> list[Violation]:
         """Compare against the stored baseline, then replace it with this response."""
         violations = self.check(tool, response)
-        self.baselines[tool] = shape_of(response)
+        shape = shape_of(response)
+        self.baselines[tool] = shape
         self.save()
         return violations
 
     def save(self) -> None:
-        if self.store is None:
+        if self._conn is None:
             return
-        self.store.parent.mkdir(parents=True, exist_ok=True)
-        self.store.write_text(
-            json.dumps(self.baselines, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        now = datetime.now(timezone.utc).isoformat()
+        for tool, shape in self.baselines.items():
+            self._conn.execute(
+                "INSERT OR REPLACE INTO baselines (tool, shape, updated_at) VALUES (?, ?, ?)",
+                (tool, json.dumps(shape), now),
+            )
+        self._conn.commit()
