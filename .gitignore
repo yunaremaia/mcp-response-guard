@@ -38,3 +38,5 @@ env/
 # Project
 .drift_log.db
 *.db-journal
+*.db-wal
+*.db-shm
