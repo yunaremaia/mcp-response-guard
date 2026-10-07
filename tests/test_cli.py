@@ -93,7 +93,7 @@ def test_check_reports_invalid_json(runner, tmp_path):
 
 
 def test_record_establishes_then_reports_drift(runner, tmp_path):
-    store = str(tmp_path / "drift.json")
+    store = str(tmp_path / "drift.db")
     first = _write(tmp_path / "a.json", {"path": "/a"})
     second = _write(tmp_path / "b.json", {"path": "/a", "inode": 7})
 
@@ -107,7 +107,7 @@ def test_record_establishes_then_reports_drift(runner, tmp_path):
 
 
 def test_record_no_update_leaves_baseline_untouched(runner, tmp_path):
-    store = str(tmp_path / "drift.json")
+    store = str(tmp_path / "drift.db")
     first = _write(tmp_path / "a.json", {"path": "/a"})
     # Drift is a *shape* change, not a value change: "/a" and "/b" fingerprint
     # identically. Adding a field is what makes this response drift.
@@ -117,8 +117,9 @@ def test_record_no_update_leaves_baseline_untouched(runner, tmp_path):
         main, ["record", other, "--tool", "fs.read", "--baseline", store, "--no-update"]
     )
     assert result.exit_code == 1
-    stored = json.loads(Path(store).read_text(encoding="utf-8"))
-    assert stored["fs.read"] == shape_for({"path": "/a"})
+    from mcp_response_guard.drift import DriftTracker
+    tracker = DriftTracker(store)
+    assert tracker.baseline("fs.read") == shape_for({"path": "/a"})
 
 
 def shape_for(payload):
@@ -128,7 +129,7 @@ def shape_for(payload):
 
 
 def test_report_lists_stored_tools(runner, tmp_path):
-    store = str(tmp_path / "drift.json")
+    store = str(tmp_path / "drift.db")
     response = _write(tmp_path / "a.json", {"path": "/a"})
     runner.invoke(main, ["record", response, "--tool", "fs.read", "--baseline", store])
     result = runner.invoke(main, ["report", store])
@@ -142,15 +143,15 @@ def test_report_on_missing_store_is_not_an_error(runner, tmp_path):
 
 
 def test_report_rejects_a_corrupt_store(runner, tmp_path):
-    store = tmp_path / "drift.json"
+    store = tmp_path / "drift.db"
     store.write_text("{nope", encoding="utf-8")
     result = runner.invoke(main, ["report", str(store)])
     assert result.exit_code != 0
-    assert "readable JSON" in result.output
+    assert "not a valid SQLite database" in result.output
 
 
 def test_report_json_output(runner, tmp_path):
-    store = str(tmp_path / "drift.json")
+    store = str(tmp_path / "drift.db")
     response = _write(tmp_path / "a.json", {"path": "/a"})
     runner.invoke(main, ["record", response, "--tool", "fs.read", "--baseline", store])
     result = runner.invoke(main, ["report", store, "--format", "json"])

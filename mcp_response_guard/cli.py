@@ -85,7 +85,7 @@ def check(response, schema_path, tool, fmt, out) -> None:
 @click.option(
     "--baseline",
     type=click.Path(),
-    default=".drift_log.json",
+    default=".drift_log.db",
     show_default=True,
     help="Baseline store, created if missing.",
 )
