@@ -65,6 +65,48 @@ def test_boolean_is_not_accepted_as_integer():
     assert [v.code for v in violations] == ["MCPR003"]
 
 
+def test_additional_properties_false_does_not_report_duplicate_violations():
+    # Issue #16: when additionalProperties is false, jsonschema already reports
+    # undeclared fields as MCPR004. _extra_fields must not report them again
+    # as MCPR002 -- that is duplicate noise for the same field.
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "required": ["name"],
+        "additionalProperties": False,
+    }
+    response = {"name": "test", "extra": "value"}
+    violations = validate_response(response, schema)
+    # Only MCPR004 from jsonschema, no duplicate MCPR002
+    assert [v.code for v in violations] == ["MCPR004"]
+
+
+def test_additional_properties_as_schema_does_not_report_extra_fields():
+    # Issue #17: when additionalProperties is a schema (dict), extra fields
+    # are valid if they pass that schema. jsonschema already validates them,
+    # so _extra_fields must not report them as MCPR002.
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "additionalProperties": {"type": "integer"},
+    }
+    response = {"name": "test", "count": 42}
+    assert validate_response(response, schema) == []
+
+
+def test_additional_properties_as_schema_still_reports_type_mismatch():
+    # When additionalProperties is a schema and the extra field fails it,
+    # jsonschema reports the type error (MCPR003), not MCPR002.
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+        "additionalProperties": {"type": "integer"},
+    }
+    response = {"name": "test", "count": "not-an-integer"}
+    violations = validate_response(response, schema)
+    assert [v.code for v in violations] == ["MCPR003"]
+
+
 def test_free_form_object_is_not_flooded_with_extra_field_violations():
     # Only descends into subschemas the schema describes.
     schema = {"type": "object", "properties": {"items": {"type": "array"}}}

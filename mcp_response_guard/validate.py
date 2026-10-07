@@ -86,13 +86,28 @@ def _extra_fields(instance: Any, schema: Any, prefix: str = "") -> list[str]:
 
     Only descends into subschemas the schema actually describes, so a response
     with a free-form bag of extra keys yields one violation, not hundreds.
+
+    When ``additionalProperties`` is a schema (dict), extra fields are valid
+    if they pass that schema -- ``jsonschema`` already validates them, so
+    they must not be reported here (issue #17).
     """
     if not isinstance(instance, dict) or not isinstance(schema, dict):
         return []
     properties = schema.get("properties")
     if not isinstance(properties, dict):
         return []
-    extra = [f"{prefix}{key}" for key in instance if key not in properties]
+    additional = schema.get("additionalProperties")
+    if isinstance(additional, dict):
+        # additionalProperties is a schema -- jsonschema validates extra fields
+        # against it. Reporting them here would be a false positive.
+        return []
+    if additional is False:
+        # additionalProperties: false -- jsonschema already reports undeclared
+        # fields as MCPR004. Reporting them again as MCPR002 is duplicate noise
+        # (issue #16). Still descend into subschemas below.
+        extra = []
+    else:
+        extra = [f"{prefix}{key}" for key in instance if key not in properties]
     for key, value in instance.items():
         if key in properties:
             extra.extend(_extra_fields(value, properties[key], f"{prefix}{key}."))
